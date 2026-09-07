@@ -1,0 +1,10 @@
+.env
+.venv/
+__pycache__/
+*.pyc
+.git
+.gitignore
+chroma_db/
+staff.db
+.langgraph_api/
+*.log
