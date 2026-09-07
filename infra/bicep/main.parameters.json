@@ -1,0 +1,17 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "namePrefix": { "value": "skyops-dev" },
+    "registryServer": { "value": "REPLACE_ME.azurecr.io" },
+    "registryResourceId": { "value": "/subscriptions/REPLACE_ME/resourceGroups/REPLACE_ME/providers/Microsoft.ContainerRegistry/registries/REPLACE_ME" },
+    "backendImage": { "value": "REPLACE_ME.azurecr.io/skyops-backend:latest" },
+    "frontendImage": { "value": "REPLACE_ME.azurecr.io/skyops-frontend:latest" },
+    "litellmProxyImage": { "value": "REPLACE_ME.azurecr.io/skyops-litellm-proxy:latest" },
+    "openaiApiKey": { "value": "REPLACE_ME" },
+    "anthropicApiKey": { "value": "REPLACE_ME" },
+    "litellmSharedKey": { "value": "REPLACE_ME" },
+    "skyopsApiKey": { "value": "REPLACE_ME" },
+    "skyopsOpsApiKey": { "value": "REPLACE_ME" }
+  }
+}

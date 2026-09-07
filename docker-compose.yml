@@ -1,0 +1,55 @@
+# Local multi-container run of all three SkyOps services. Mirrors the deployment shape in
+# infra/bicep/ (three separate Azure Container Apps) - see docs/architecture.md.
+#
+# Prereqs: each service's real .env exists (copy from its .env.example and fill in secrets -
+# litellm-proxy/.env needs OPENAI_API_KEY/ANTHROPIC_API_KEY/LITELLM_MASTER_KEY; backend/.env's
+# LITELLM_API_KEY must match litellm-proxy's LITELLM_MASTER_KEY; backend/.env's SKYOPS_API_KEY
+# must match frontend/.env's SKYOPS_API_KEY). The LITELLM_BASE_URL/SKYOPS_API_BASE_URL values in
+# those .env files point at localhost for non-Docker dev - this file overrides both to the
+# compose service DNS names below, since containers can't reach each other via localhost.
+#
+# Run: docker compose up --build
+
+services:
+  litellm-proxy:
+    build: ./litellm-proxy
+    ports:
+      - "4000:4000"
+    env_file:
+      - ./litellm-proxy/.env
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4000/health/readiness')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      LITELLM_BASE_URL: http://litellm-proxy:4000
+    depends_on:
+      litellm-proxy:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "8501:8501"
+    env_file:
+      - ./frontend/.env
+    environment:
+      SKYOPS_API_BASE_URL: http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
