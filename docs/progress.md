@@ -865,14 +865,79 @@ Read this before making changes. Update it at the end of every session.
   chat history above) - unrelated to Day 6's infra work, `langgraph dev`
   (2024) and `litellm-proxy` (4000) untouched.
 
+## Key rotation, first real git history, and docker-compose verification (2026-09-07)
+- **Closed out the Day-6 `docker compose config` secret-leak incident**:
+  rotated all five exposed secrets this session -
+  `OPENAI_API_KEY`/`ANTHROPIC_API_KEY` (user rotated via the OpenAI/
+  Anthropic consoles - not something this session can do itself),
+  `LITELLM_MASTER_KEY` (+ matching `LITELLM_API_KEY` in `backend/.env`),
+  `SKYOPS_API_KEY` (updated in both `backend/.env` and `frontend/.env` -
+  they must match), and `SKYOPS_OPS_API_KEY`. Each rotation was verified
+  live, not just written to the `.env` files: old keys confirmed rejected
+  (401/403), new keys confirmed working, including real completions
+  through both `primary` (OpenAI) and `fallback` (Anthropic) via a
+  restarted `litellm-proxy`.
+  - **Caught a false "done" claim mid-rotation**: after the user said "all
+    my keys are rotated," diffing `litellm-proxy/.env` against its prior
+    content showed `ANTHROPIC_API_KEY` had actually changed but
+    `OPENAI_API_KEY` was byte-for-byte identical to the old, leaked value -
+    flagged instead of trusting the claim; user then rotated it for real
+    and the diff (and a live completion) confirmed it. Worth always
+    diffing against the known-old value rather than trusting "I rotated
+    it," since a rotation can silently fail to take (e.g. pasting into the
+    wrong line, or a dashboard action that didn't actually save).
+  - **Found a real gotcha while restarting the backend**: `backend/app/
+    main.py` has no dotenv loading - `middleware/auth.py`/`gateway/
+    client.py` read straight from `os.environ`, so `uv run uvicorn`
+    only sees `backend/.env` values if they're exported into the shell
+    first (`set -a && source <(tr -d '\r' < .env) && set +a`, since the
+    file has CRLF line endings that break a plain `source`). The first
+    restart attempt 401'd on a correct key for exactly this reason.
+    `litellm-proxy`'s own CLI loads its `.env` automatically, so that
+    service didn't have this problem. Not fixed (no dotenv dependency
+    added) since this only affects manual local restarts, not
+    `docker compose`/Bicep, which supply env vars directly - but worth
+    remembering for the next local restart.
+- **Committed and pushed the entire project for the first time**: nothing
+  had been committed since the initial uv scaffold (`3b5497c`) despite
+  Days 2-6 of work sitting in the working tree. Split into 6 logical
+  commits rather than one dump - core LangGraph agent (state, specialists,
+  RAG, gateway, guardrails, fixtures), FastAPI backend (routes,
+  middleware, staff auth/queue), Streamlit frontend, Docker/Bicep/CI
+  infra, docs + `.claude/` config, then a `.dockerignore` follow-up (see
+  below) - and pushed all of it to `origin/main`
+  (`github.com/munira3011/skyops`).
+  - Before pushing, ran a full safety pass: scanned every commit's diff
+    and the entire git history (`git log --all -p`/`git grep` across all
+    revisions) for secret-shaped strings (`sk-proj-`, `sk-ant-api03-`,
+    `LITELLM_MASTER_KEY=sk-`, etc.) and confirmed `.env`/`staff.db`/
+    `chroma_db` were never tracked at any point - all clean. Re-verified
+    `docker-compose.yml` and all three `Dockerfile`s only reference
+    secrets via `env_file`/`os.environ`, never a literal value, and none
+    use `COPY . .` that could pull `.env` into an image.
+  - Added `.dockerignore` to `backend/`, `frontend/`, `litellm-proxy/` as
+    a hardening measure (not a fix for an active leak - the Dockerfiles'
+    explicit `COPY`s already made this safe) so a future switch to
+    `COPY . .` wouldn't silently start baking `.env` into an image.
+- **Verified `docker compose up` for real** (a Docker daemon wasn't
+  running in the Day 6 session, so this had only been YAML-validated
+  until now): built and started all three services, confirmed
+  `depends_on`/healthcheck ordering works (backend waited for a healthy
+  litellm-proxy, frontend for a healthy backend), and confirmed real
+  inter-container networking - backend's logs showed it calling
+  `http://litellm-proxy:4000` (the compose DNS override), not
+  `localhost`. Verified over HTTP against the running containers: health
+  checks, 401 on a missing API key, a flight-status query, and a RAG
+  policy query with a correct grounded citation - all through the
+  containerized stack, live LLM calls included. No errors or leaked
+  secrets in container logs. Brought the stack down cleanly afterward
+  (`docker compose down`).
+
 ## Next up
-- **Rotate the provider/app keys exposed by the `docker compose config`
-  incident above, if not already done.**
-- Verify Day 6's infra actually works: `docker compose up` for real (a
-  Docker daemon wasn't running in this session); `az bicep build`/
-  `az deployment group validate` (or an actual `az deployment group
-  create` against a scratch resource group) for the Bicep templates; a
-  real run of `.github/workflows/deploy.yml` once the Azure resources/
+- `az bicep build`/`az deployment group validate` (or an actual
+  `az deployment group create` against a scratch resource group) for the
+  Bicep templates - still unverified against a real Azure subscription.
+- A real run of `.github/workflows/deploy.yml` once the Azure resources/
   secrets it expects exist.
 - Move on to Day 7: `evals/` - `datasets/{golden_qa.jsonl,
   adversarial_prompts.jsonl}`, `test_agent_accuracy.py`,
