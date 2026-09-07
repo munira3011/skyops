@@ -72,9 +72,15 @@ to END when resolved.
   ongoing after)
 
 ## Current phase
-Day 3 of a 7-day build. Day 2 (RAG ingestion, flight_status_agent,
-rag_policy_agent, LangGraph Studio, gateway/client.py, litellm-proxy config)
-is done. Day 3 focus: wire the gateway into supervisor/rag_policy_agent,
-build booking_disruption_agent + human_approval, start guardrails. Check
-docs/progress.md for exactly what's done and what's next — read that file at
-the start of every session before making changes.
+Day 6 of a 7-day build is done (graph/RAG/guardrails, FastAPI backend, Streamlit
+frontend incl. staff approval UI, Docker/Bicep/CI infra). The whole project was
+committed and pushed to `origin/main` for the first time on 2026-09-07, after a
+full secret-scan of the git history (see docs/progress.md) — a prior
+`docker compose config` incident had exposed real provider/app keys, all of
+which have since been rotated and reverified. `docker compose up` has been
+verified working end-to-end; the Bicep templates and GitHub Actions workflow
+have not yet been verified against a real Azure subscription. Next up: that
+Azure verification, then Day 7 — build out `evals/` (golden_qa.jsonl,
+adversarial_prompts.jsonl, test_agent_accuracy.py, test_guardrails.py,
+run_ragas_eval.py). Check docs/progress.md for exactly what's done and what's
+next — read that file at the start of every session before making changes.
