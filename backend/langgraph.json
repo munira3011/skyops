@@ -1,0 +1,6 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "skyops": "./app/graph/graph.py:graph"
+  }
+}

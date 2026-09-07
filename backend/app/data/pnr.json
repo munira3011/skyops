@@ -1,0 +1,95 @@
+{
+  "bookings": [
+    {
+      "pnr": "ZX7K9M",
+      "passenger_name": "Sarah John",
+      "flight_number": "ZX431",
+      "cabin_class": "business",
+      "seat": "4A",
+      "booking_status": "confirmed",
+      "loyalty_number": "ZM10023456",
+      "loyalty_tier": "platinum",
+      "fare_type": "flexible",
+      "baggage_checked": 2,
+      "special_requests": []
+    },
+    {
+      "pnr": "ZX3P8L",
+      "passenger_name": "James Okonkwo",
+      "flight_number": "ZX762",
+      "cabin_class": "economy",
+      "seat": "27C",
+      "booking_status": "confirmed",
+      "loyalty_number": "ZM10088721",
+      "loyalty_tier": "silver",
+      "fare_type": "saver",
+      "baggage_checked": 1,
+      "special_requests": []
+    },
+    {
+      "pnr": "ZX5R2Q",
+      "passenger_name": "Meera Krishnan",
+      "flight_number": "ZX847",
+      "cabin_class": "premium_economy",
+      "seat": "18D",
+      "booking_status": "confirmed",
+      "loyalty_number": "ZM10045590",
+      "loyalty_tier": "gold",
+      "fare_type": "standard",
+      "baggage_checked": 2,
+      "special_requests": ["vegetarian_meal"]
+    },
+    {
+      "pnr": "ZX9T4W",
+      "passenger_name": "Daniel Kessler",
+      "flight_number": "ZX205",
+      "cabin_class": "first",
+      "seat": "1K",
+      "booking_status": "confirmed",
+      "loyalty_number": "ZM10011203",
+      "loyalty_tier": "platinum",
+      "fare_type": "flexible",
+      "baggage_checked": 3,
+      "special_requests": ["chauffeur_pickup"]
+    },
+    {
+      "pnr": "ZX1V6X",
+      "passenger_name": "Aisha Bello",
+      "flight_number": "ZX275",
+      "cabin_class": "economy",
+      "seat": "34F",
+      "booking_status": "confirmed",
+      "loyalty_number": null,
+      "loyalty_tier": "none",
+      "fare_type": "saver",
+      "baggage_checked": 1,
+      "special_requests": []
+    },
+    {
+      "pnr": "ZX8N2C",
+      "passenger_name": "Wei Zhang",
+      "flight_number": "ZX431",
+      "cabin_class": "economy",
+      "seat": "41B",
+      "booking_status": "waitlisted",
+      "loyalty_number": "ZM10067812",
+      "loyalty_tier": "gold",
+      "fare_type": "standard",
+      "baggage_checked": 1,
+      "special_requests": ["assistance_mobility"]
+    },
+    {
+      "pnr": "ZXDEMO1",
+      "passenger_name": "Demo Passenger",
+      "flight_number": "ZXDEMO",
+      "cabin_class": "economy",
+      "seat": "20C",
+      "booking_status": "confirmed",
+      "loyalty_number": null,
+      "loyalty_tier": "none",
+      "fare_type": "saver",
+      "baggage_checked": 1,
+      "special_requests": []
+    }
+  ]
+}

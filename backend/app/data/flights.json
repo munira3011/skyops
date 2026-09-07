@@ -1,0 +1,136 @@
+{
+  "flights": [
+    {
+      "flight_number": "ZX205",
+      "origin": "DXB",
+      "destination": "LHR",
+      "scheduled_departure": "2026-09-05T08:30:00+04:00",
+      "scheduled_arrival": "2026-09-05T13:10:00+01:00",
+      "status": "on_time",
+      "aircraft": "Boeing 777-300ER",
+      "gate": "A14",
+      "delay_minutes": 0,
+      "delay_reason": null
+    },
+    {
+      "flight_number": "ZX431",
+      "origin": "DXB",
+      "destination": "JFK",
+      "scheduled_departure": "2026-09-05T09:15:00+04:00",
+      "scheduled_arrival": "2026-09-05T15:05:00-04:00",
+      "status": "delayed",
+      "aircraft": "Airbus A380-800",
+      "gate": "B22",
+      "delay_minutes": 95,
+      "delay_reason": "technical_inspection"
+    },
+    {
+      "flight_number": "ZX118",
+      "origin": "DXB",
+      "destination": "SIN",
+      "scheduled_departure": "2026-09-05T02:45:00+04:00",
+      "scheduled_arrival": "2026-09-05T14:20:00+08:00",
+      "status": "on_time",
+      "aircraft": "Boeing 777-300ER",
+      "gate": "C09",
+      "delay_minutes": 0,
+      "delay_reason": null
+    },
+    {
+      "flight_number": "ZX762",
+      "origin": "DXB",
+      "destination": "CDG",
+      "scheduled_departure": "2026-09-05T03:20:00+04:00",
+      "scheduled_arrival": "2026-09-05T08:05:00+02:00",
+      "status": "cancelled",
+      "aircraft": "Airbus A350-900",
+      "gate": null,
+      "delay_minutes": null,
+      "delay_reason": "weather"
+    },
+    {
+      "flight_number": "ZX509",
+      "origin": "DXB",
+      "destination": "BOM",
+      "scheduled_departure": "2026-09-05T14:00:00+04:00",
+      "scheduled_arrival": "2026-09-05T16:35:00+05:30",
+      "status": "on_time",
+      "aircraft": "Boeing 787-9",
+      "gate": "D03",
+      "delay_minutes": 0,
+      "delay_reason": null
+    },
+    {
+      "flight_number": "ZX847",
+      "origin": "DXB",
+      "destination": "SYD",
+      "scheduled_departure": "2026-09-05T10:50:00+04:00",
+      "scheduled_arrival": "2026-09-06T07:15:00+10:00",
+      "status": "delayed",
+      "aircraft": "Airbus A380-800",
+      "gate": "A02",
+      "delay_minutes": 40,
+      "delay_reason": "crew_scheduling"
+    },
+    {
+      "flight_number": "ZX330",
+      "origin": "DXB",
+      "destination": "FRA",
+      "scheduled_departure": "2026-09-05T04:10:00+04:00",
+      "scheduled_arrival": "2026-09-05T08:35:00+02:00",
+      "status": "on_time",
+      "aircraft": "Boeing 777-300ER",
+      "gate": "B11",
+      "delay_minutes": 0,
+      "delay_reason": null
+    },
+    {
+      "flight_number": "ZX612",
+      "origin": "DXB",
+      "destination": "NRT",
+      "scheduled_departure": "2026-09-05T02:15:00+04:00",
+      "scheduled_arrival": "2026-09-05T16:40:00+09:00",
+      "status": "on_time",
+      "aircraft": "Boeing 777-300ER",
+      "gate": "C17",
+      "delay_minutes": 0,
+      "delay_reason": null
+    },
+    {
+      "flight_number": "ZX275",
+      "origin": "DXB",
+      "destination": "JNB",
+      "scheduled_departure": "2026-09-05T09:40:00+04:00",
+      "scheduled_arrival": "2026-09-05T16:05:00+02:00",
+      "status": "delayed",
+      "aircraft": "Airbus A350-900",
+      "gate": "A19",
+      "delay_minutes": 25,
+      "delay_reason": "air_traffic_control"
+    },
+    {
+      "flight_number": "ZX901",
+      "origin": "DXB",
+      "destination": "BKK",
+      "scheduled_departure": "2026-09-05T08:00:00+04:00",
+      "scheduled_arrival": "2026-09-05T14:35:00+07:00",
+      "status": "on_time",
+      "aircraft": "Boeing 787-9",
+      "gate": "D08",
+      "delay_minutes": 0,
+      "delay_reason": null
+    },
+    {
+      "flight_number": "ZXDEMO",
+      "origin": "DXB",
+      "destination": "LHR",
+      "scheduled_departure": "2026-09-05T08:00:00+04:00",
+      "scheduled_arrival": "2026-09-05T12:00:00+01:00",
+      "status": "cancelled",
+      "aircraft": "Boeing 777-300ER",
+      "gate": null,
+      "delay_minutes": null,
+      "delay_reason": "technical_inspection"
+    }
+  ]
+}
