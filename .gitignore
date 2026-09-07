@@ -4,6 +4,8 @@ __pycache__/
 .venv/
 */.venv/
 chroma_db/
+staff.db
+.langgraph_api/
 node_modules/
 .DS_Store
 *.log
