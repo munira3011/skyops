@@ -211,16 +211,24 @@ if nav == "Customer Chat":
     st.caption("Ask about flight status, booking disruptions, or airline policy.")
 
     if st.session_state.thread_id:
-        if st.button("Refresh", help="Check for updates - e.g. a staff decision on a pending request"):
-            st.rerun()
+        # The history sync below already runs on every rerun (not just a click - e.g. also
+        # before sending a new message), so a bare `st.rerun()` on click used to be a no-op:
+        # it re-ran the same always-on sync and gave no sign anything had happened. Now the
+        # button's own click is tracked so we can show explicit feedback (toast) only for that
+        # click - and deliberately without calling st.rerun() afterward, since that would
+        # restart the script before the toast ever gets a chance to render.
+        refresh_clicked = st.button("Refresh", help="Check for updates - e.g. a staff decision on a pending request")
         try:
             history = _get_chat_history(st.session_state.thread_id)
-        except requests.RequestException:
-            pass  # keep showing the last-known local history rather than blanking the page
+        except requests.RequestException as exc:
+            if refresh_clicked:
+                st.error(f"Couldn't check for updates: {exc}")
+            # else: keep showing the last-known local history rather than blanking the page
         else:
-            st.session_state.messages = [
-                {"role": m["role"], "content": m["content"]} for m in history["messages"]
-            ]
+            new_messages = [{"role": m["role"], "content": m["content"]} for m in history["messages"]]
+            if refresh_clicked:
+                st.toast("Updated with the latest activity." if new_messages != st.session_state.messages else "No new updates.")
+            st.session_state.messages = new_messages
             if history.get("pending_approval"):
                 st.info("This request is still awaiting a Zenith Air agent's sign-off.")
 
