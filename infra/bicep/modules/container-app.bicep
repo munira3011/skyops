@@ -41,10 +41,23 @@ param useManagedIdentityForRegistry bool = true
 // their own variables rather than inline inside concat() below - Bicep only allows a for-
 // expression as the direct value of a resource/module/variable/output declaration or a
 // resource/module property (BCP138), not nested inside an arbitrary function call.
+//
+// Container Apps' internal *secret name* (its own secret-store key) and the *environment
+// variable name* exposed to the container are two different namespaces with different rules -
+// found on the first real deployment attempt (ContainerAppInvalidSecretName), see
+// docs/progress.md. The env var name must stay exactly as given (e.g. ANTHROPIC_API_KEY - the
+// app reads it via os.environ, uppercase-with-underscores by convention); the secret name must
+// be lowercase alphanumeric/hyphens only, so it's derived separately and only used as the
+// secretRef, never shown to the app itself.
 var secretNames = items(secretEnvVars)
-var secretEnvRefs = [for s in secretNames: {
-  name: s.key
-  secretRef: s.key
+var secretEntries = [for s in secretNames: {
+  envName: s.key
+  secretName: replace(toLower(s.key), '_', '-')
+  value: s.value
+}]
+var secretEnvRefs = [for e in secretEntries: {
+  name: e.envName
+  secretRef: e.secretName
 }]
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
@@ -63,9 +76,9 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: [
-        for s in secretNames: {
-          name: s.key
-          value: s.value
+        for e in secretEntries: {
+          name: e.secretName
+          value: e.value
         }
       ]
       registries: !empty(registryServer) && useManagedIdentityForRegistry
