@@ -100,6 +100,12 @@ jobs:
           scope: resourcegroup
           resourceGroupName: ${{ secrets.AZURE_RESOURCE_GROUP }}
           template: infra/bicep/main.bicep
+          # azure/arm-deploy defaults to treating ANY stderr output as a failure - including
+          # Azure CLI's own benign Bicep linter warnings (e.g. use-secure-value-for-secure-
+          # inputs, printed to stderr by az itself). Found on the first real deployment: this
+          # step reported "Deployment process failed as some lines were written to stderr" even
+          # though every resource had actually deployed successfully (verified in the Portal).
+          failOnStdErr: false
           parameters: >
             namePrefix=skyops
             registryServer=${{ secrets.AZURE_CONTAINER_REGISTRY }}
