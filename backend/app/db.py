@@ -115,9 +115,10 @@ def list_pending_approvals() -> list[dict]:
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) != 3:
-        print("Usage: uv run python -m app.db <username> <password>")
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] not in ("staff", "admin")):
+        print("Usage: uv run python -m app.db <username> <password> [staff|admin]")
         raise SystemExit(1)
 
-    create_staff_user(sys.argv[1], sys.argv[2])
-    print(f"Created staff user '{sys.argv[1]}' with role 'staff'.")
+    role = sys.argv[3] if len(sys.argv) == 4 else "staff"
+    create_staff_user(sys.argv[1], sys.argv[2], role)
+    print(f"Created staff user '{sys.argv[1]}' with role '{role}'.")
