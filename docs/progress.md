@@ -933,18 +933,133 @@ Read this before making changes. Update it at the end of every session.
   secrets in container logs. Brought the stack down cleanly afterward
   (`docker compose down`).
 
+## Day 7: eval suite, a RAG retrieval bug it caught and fixed, an eval dashboard, and role-based login (2026-09-08)
+- **Built the full Day 7 eval suite** - `evals/` (a new folder, not its own
+  uv project; it borrows `backend/`'s venv/deps since it needs to invoke
+  the real graph/gateway/guardrails):
+  - `datasets/golden_qa.jsonl` (24 cases across all 4 specialist routes
+    plus a "none" bucket, including a regression case for Day 5's "my
+    pnr" keyword-shadowing bug) and `datasets/adversarial_prompts.jsonl`
+    (14 cases: real jailbreak/abuse/PII attempts plus the two documented
+    false-positive regressions from Day 3 - citation leak - and Day 4 -
+    own-PNR sharing).
+  - `test_agent_accuracy.py`/`test_guardrails.py` - pytest, calling the
+    real graph/`input_guard`/`output_guard` against the live proxy. All
+    38 cases pass.
+  - `run_ragas_eval.py` - scores `rag_policy_agent`'s real answers with
+    ragas (`faithfulness`, reference-free `context precision`), using
+    `get_chat_model()` as judge (never a provider directly, per
+    CLAUDE.md). `answer_relevancy` deliberately excluded - it needs an
+    embeddings model and this project has no embeddings route through
+    the proxy.
+  - `conftest.py` loads `backend/.env` and skips the whole session with
+    a clear message if no live proxy is configured.
+  - Added `pytest`/`python-dotenv`/`ragas` as backend dev deps, plus a
+    `langchain-community==0.3.31` pin - ragas 0.3.9/0.4.3 both eagerly
+    import `langchain_community.chat_models.vertexai`, a module dropped
+    in `langchain-community` 0.4's sunset/migration; pinning to the last
+    pre-sunset version fixes ragas's import chain.
+  - **Real gotcha found while wiring ragas**: its default `RunConfig`
+    bursts up to 16 concurrent judge calls - our single local
+    `litellm-proxy` process couldn't keep up, and every `faithfulness`
+    call (2 LLM calls per sample) timed out. Fixed with
+    `RunConfig(max_workers=2)`.
+  - **Reverted a bad on-disk edit mid-session**: something (likely an
+    IDE "fix imports" action) changed the eval files' imports to
+    `backend.app.*`, which doesn't resolve (`backend` has no
+    `__init__.py`, and `conftest.py`'s `sys.path` insertion adds
+    `backend/` itself, not the repo root) - confirmed broken via a
+    failed pytest collection, reverted to `app.*`, and added
+    `evals/pyrightconfig.json` (`extraPaths: ["../backend"]`) so the
+    static analyzer agrees with the runtime path setup and stops
+    suggesting the bad fix again.
+- **The ragas eval immediately found a real RAG retrieval bug**: 2 of 5
+  policy questions retrieved the wrong chunk at `k=1` - e.g. "what
+  documents do I need for check-in" matched **"Check-in windows"**
+  instead of the actual **"Travel document requirements"** section,
+  which ranked #7 by embedding distance and sat just outside the old
+  1.6 relevance cutoff at 1.665 (confirmed both correct sections exist
+  in the source docs).
+  - Fixed in `rag/retriever.py` (raised `_MAX_DISTANCE` to 1.75 - still
+    clear of the ~1.8+ floor real off-topic/gibberish queries score at,
+    reverified against several) and `rag_policy_agent.py` (retrieves 8
+    candidates instead of 1 - the whole policy corpus is only 21 chunks,
+    so this is cheap - and asks the LLM to pick which excerpt actually
+    answers the question via structured output, rather than trusting
+    the raw embedding top-1). `_synthesize` now returns `(reply,
+    chunk_used)` so citations - and evals - reflect the chunk that
+    actually produced the answer.
+  - **Caught a second, eval-script-only bug while verifying the fix**:
+    after the retrieval fix, `run_ragas_eval.py` still separately
+    re-retrieved `k=1` to build ragas's scoring context, disconnected
+    from what `_synthesize` actually picked among its 8 candidates - so
+    the two fixed questions scored `faithfulness=0.00` (correct answer,
+    scored against the wrong leftover context). Fixed by having the
+    eval script call `_synthesize` directly and score against the chunk
+    it actually returned.
+  - Final result: faithfulness 1.00, context precision 1.00 across all
+    5 questions, both thresholds (0.8) met.
+- **Built a RAG eval dashboard** (`GET /ops/evals/rag` +
+  `frontend/app.py`'s "Eval Dashboard" page): `run_ragas_eval.py`
+  persists its results to `backend/app/data/eval_results/rag_eval.json`
+  (gitignored - a generated artifact, like `chroma_db/`/`staff.db`);
+  the route just reads that snapshot (no live re-run, no ragas/pytest
+  as a production dependency); the frontend renders generated-at
+  timestamp, a pass/fail badge, faithfulness/context-precision metrics
+  with threshold deltas, and a per-question table.
+  - **Found and fixed a real bug**: the results writer's `passed` value
+    was a `numpy.bool_` (from a pandas `.mean()` comparison), which
+    `json.dumps` can't serialize - crashed the whole eval run at the
+    very last step, after several minutes of real LLM calls. Fixed with
+    an explicit `bool(...)` cast.
+- **Replaced `st.tabs` with a styled sidebar nav**: plain `st.button` per
+  page (`type="primary"` on the active one) instead of `st.radio`, so
+  each can look like a selectable "tab" - dark background/light text on
+  the active page, extra top/bottom padding on all of them, via CSS
+  keyed to Streamlit's button `kind` attribute. Also fixed a real
+  Streamlit deprecation (`use_container_width` -> `width="stretch"/
+  "content"`) surfaced during testing - its removal date had already
+  passed as of today.
+- **Added role-based staff/admin login**, replacing the old
+  login-form-embedded-in-Staff-Approval design with a dedicated "Staff
+  Login" page and a nav list computed from auth state:
+  - Logged out: `Customer Chat` (default landing page, no login needed)
+    + `Staff Login`.
+  - `staff` role: `Staff Approval` only.
+  - `admin` role: all three pages, including `Eval Dashboard`.
+  - Enforced server-side, not just hidden in the UI:
+    `middleware/auth.py` now has `_has_ops_access` (staff OR admin - for
+    approvals) and a stricter `_has_admin_access` (admin only, checked
+    before the general `/ops` prefix since `/ops/evals/*` is more
+    specific) - verified a real staff bearer token gets 403 on
+    `/ops/evals/rag` while an admin token gets 200.
+  - `db.py`'s CLI now takes an optional role:
+    `uv run python -m app.db <username> <password> [staff|admin]`
+    (defaults to `staff`). Created `eval_test_staff2`/`eval_test_admin`
+    test accounts this session for verification - left in `staff.db`
+    for continued testing, same as prior sessions' `test_staff` account.
+- Verified everything end-to-end via `AppTest` for every role
+  (anonymous/staff/admin - nav contents, chat input visibility, login/
+  logout, Eval Dashboard rendering) and via real HTTP for the backend's
+  role gating. Full eval suite (38 pytest cases + the ragas run) green
+  throughout. Restarted `litellm-proxy` (4000), backend (8000), and
+  `streamlit run` (8501) multiple times across this session's changes;
+  all three left running at the end for continued testing.
+- Committed and pushed in 3 grouped commits (eval suite -> RAG retrieval
+  fix -> eval dashboard + role-based access), after the same pre-push
+  secret-scan discipline as Day 6's first push - all clean.
+
 ## Next up
 - `az bicep build`/`az deployment group validate` (or an actual
   `az deployment group create` against a scratch resource group) for the
   Bicep templates - still unverified against a real Azure subscription.
 - A real run of `.github/workflows/deploy.yml` once the Azure resources/
   secrets it expects exist.
-- Move on to Day 7: `evals/` - `datasets/{golden_qa.jsonl,
-  adversarial_prompts.jsonl}`, `test_agent_accuracy.py`,
-  `test_guardrails.py`, `run_ragas_eval.py`. Per CLAUDE.md, run these
-  before considering a day's work done from here on.
 - Also still open: the "is it approved"-style status-check classifier gap
-  noted above (Day 5's user-reported-bug section), if wanted.
+  noted in the Day-5 user-reported-bug section, if wanted.
+- Minor: `backend/app/main.py` still has no dotenv loading (see the
+  2026-09-07 entry above) - only matters for manual local restarts, not
+  `docker compose`/Bicep, but worth remembering each time.
 
 ## Looking further ahead (rough, adjust as we go)
 - **Day 6**: `docs/architecture.md`, `.claude/skills/langgraph-node/SKILL.md`,
