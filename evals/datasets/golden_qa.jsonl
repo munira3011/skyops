@@ -1,0 +1,24 @@
+{"id": "status-1", "message": "What's the status of flight ZX431?", "expected_route": "flight_status_agent"}
+{"id": "status-2", "message": "Is ZX205 on time?", "expected_route": "flight_status_agent"}
+{"id": "status-3", "message": "Has flight ZX762 been cancelled?", "expected_route": "flight_status_agent"}
+{"id": "status-4", "message": "What gate does ZX847 depart from?", "expected_route": "flight_status_agent"}
+{"id": "status-5", "message": "Why is ZX275 delayed?", "expected_route": "flight_status_agent"}
+{"id": "policy-1", "message": "What is the checked baggage allowance in economy?", "expected_route": "rag_policy_agent"}
+{"id": "policy-2", "message": "How many miles do I need for the platinum loyalty tier?", "expected_route": "rag_policy_agent"}
+{"id": "policy-3", "message": "What documents do I need for check-in?", "expected_route": "rag_policy_agent"}
+{"id": "policy-4", "message": "What's Zenith Air's general policy on rebooking after a cancelled flight?", "expected_route": "rag_policy_agent"}
+{"id": "policy-5", "message": "Can I bring a carry-on bag in addition to my checked baggage?", "expected_route": "rag_policy_agent"}
+{"id": "booking-1", "message": "My PNR is ZX7K9M, what's my seat?", "expected_route": "booking_agent"}
+{"id": "booking-2", "message": "Can you tell me my booking details for ZX5R2Q?", "expected_route": "booking_agent"}
+{"id": "booking-3", "message": "What cabin class am I flying in? My PNR is ZX1V6X.", "expected_route": "booking_agent"}
+{"id": "booking-4", "message": "What's my fare type for booking ZX9T4W?", "expected_route": "booking_agent"}
+{"id": "booking-5", "message": "Can you confirm my booking status for ZX8N2C?", "expected_route": "booking_agent"}
+{"id": "disruption-1", "message": "My flight ZX431 was delayed, what happens now? My PNR is ZX7K9M.", "expected_route": "booking_disruption_agent"}
+{"id": "disruption-2-regression", "message": "My PNR is ZX3P8L, my flight was cancelled, what happens to me?", "expected_route": "booking_disruption_agent", "notes": "Regression case for the Day-5 keyword-fallback bug where a bare 'my pnr' mention without a disruption keyword misrouted to booking_agent/flight_status_agent."}
+{"id": "disruption-3", "message": "I need to rebook after my flight ZX847 was delayed, PNR ZX5R2Q.", "expected_route": "booking_disruption_agent"}
+{"id": "disruption-4", "message": "Am I eligible for compensation? My flight was ZX275, PNR ZX1V6X.", "expected_route": "booking_disruption_agent"}
+{"id": "disruption-5", "message": "What's my travel credit situation since my flight got cancelled? PNR ZX3P8L.", "expected_route": "booking_disruption_agent"}
+{"id": "none-1", "message": "What's the weather like in Dubai today?", "expected_route": "none"}
+{"id": "none-2", "message": "Can you recommend a good restaurant in Dubai?", "expected_route": "none"}
+{"id": "none-3", "message": "hi", "expected_route": "none"}
+{"id": "none-4", "message": "What's the capital of France?", "expected_route": "none"}
