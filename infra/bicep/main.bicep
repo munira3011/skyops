@@ -16,7 +16,7 @@ param namePrefix string = 'skyops'
 @description('Container registry login server (e.g. myregistry.azurecr.io) that the three images below were pushed to.')
 param registryServer string
 
-@description('Resource ID of that same container registry (Microsoft.ContainerRegistry/registries) - used to grant each app\'s managed identity AcrPull, so no registry password is ever stored as a secret.')
+@description('Resource ID of that same container registry (Microsoft.ContainerRegistry/registries) - used to grant the shared pull identity AcrPull, so no registry password is ever stored as a secret.')
 param registryResourceId string
 
 @description('Full image references for each service, e.g. myregistry.azurecr.io/skyops-backend:<git-sha>. Supplied per-deploy by CI so each run pins an exact, traceable build.')
@@ -55,6 +55,15 @@ var litellmProxyName = '${namePrefix}-litellm-proxy'
 var backendName = '${namePrefix}-backend'
 var frontendName = '${namePrefix}-frontend'
 
+var acrPullRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
+
+// Assumes the registry lives in this same resource group (true for this project's scope); if it
+// doesn't, deploy the identity/role assignment below as a separate module scoped to the
+// registry's own resource group instead.
+resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
+  name: last(split(registryResourceId, '/'))
+}
+
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsName
   location: location
@@ -80,6 +89,29 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
   }
 }
 
+// One shared user-assigned identity, granted AcrPull *before* any container app exists - a
+// system-assigned identity's principalId only exists once its container app has already been
+// created, but the app needs AcrPull to pull its image before it can start at all. That's a
+// deadlock on a from-scratch registry/environment (found on the first real deployment attempt:
+// litellm-proxy never got a revision - "Operation expired" - and its AcrPull role assignment,
+// which depended on its own not-yet-existing output, was never even attempted; the registry
+// showed zero AcrPull grants. See docs/progress.md). A user-assigned identity breaks the cycle:
+// it and its role assignment are both created upfront, independent of any container app.
+resource acrPullIdentity 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
+  name: '${namePrefix}-acr-pull-identity'
+  location: location
+}
+
+resource acrPullRoleAssignment 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
+  name: guid(registryResourceId, acrPullIdentity.id, acrPullRoleId)
+  scope: acr
+  properties: {
+    roleDefinitionId: acrPullRoleId
+    principalId: acrPullIdentity.properties.principalId
+    principalType: 'ServicePrincipal'
+  }
+}
+
 // litellm-proxy: internal-only ingress. The only service holding real provider keys; nothing
 // outside this environment (and no service other than backend) should ever call it directly.
 module litellmProxy 'modules/container-app.bicep' = {
@@ -92,12 +124,16 @@ module litellmProxy 'modules/container-app.bicep' = {
     targetPort: 4000
     externalIngress: false
     registryServer: registryServer
+    userAssignedIdentityId: acrPullIdentity.id
     secretEnvVars: {
       OPENAI_API_KEY: openaiApiKey
       ANTHROPIC_API_KEY: anthropicApiKey
       LITELLM_MASTER_KEY: litellmSharedKey
     }
   }
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
 }
 
 // backend: external ingress (the frontend and any direct API/ops testing need to reach it).
@@ -114,6 +150,7 @@ module backend 'modules/container-app.bicep' = {
     targetPort: 8000
     externalIngress: true
     registryServer: registryServer
+    userAssignedIdentityId: acrPullIdentity.id
     envVars: [
       { name: 'LITELLM_BASE_URL', value: 'https://${litellmProxy.outputs.fqdn}' }
       { name: 'LITELLM_MODEL', value: 'primary' }
@@ -124,6 +161,9 @@ module backend 'modules/container-app.bicep' = {
       SKYOPS_OPS_API_KEY: skyopsOpsApiKey
     }
   }
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
 }
 
 // frontend: external ingress, the only customer-facing surface. Never given the ops key - it
@@ -138,6 +178,7 @@ module frontend 'modules/container-app.bicep' = {
     targetPort: 8501
     externalIngress: true
     registryServer: registryServer
+    userAssignedIdentityId: acrPullIdentity.id
     envVars: [
       { name: 'SKYOPS_API_BASE_URL', value: 'https://${backend.outputs.fqdn}' }
     ]
@@ -145,48 +186,9 @@ module frontend 'modules/container-app.bicep' = {
       SKYOPS_API_KEY: skyopsApiKey
     }
   }
-}
-
-// Grant each app's system-assigned identity permission to pull from the registry - the
-// container-app module configures `registries: [{ identity: 'system' }]`, which requires this
-// role assignment to actually work. No registry password/secret involved.
-// Assumes the registry lives in this same resource group (true for this project's scope); if it
-// doesn't, deploy these three role assignments as a separate module scoped to the registry's own
-// resource group instead.
-var acrPullRoleId = subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')
-
-resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
-  name: last(split(registryResourceId, '/'))
-}
-
-resource litellmProxyAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registryResourceId, litellmProxyName, acrPullRoleId)
-  scope: acr
-  properties: {
-    roleDefinitionId: acrPullRoleId
-    principalId: litellmProxy.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource backendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registryResourceId, backendName, acrPullRoleId)
-  scope: acr
-  properties: {
-    roleDefinitionId: acrPullRoleId
-    principalId: backend.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
-}
-
-resource frontendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registryResourceId, frontendName, acrPullRoleId)
-  scope: acr
-  properties: {
-    roleDefinitionId: acrPullRoleId
-    principalId: frontend.outputs.principalId
-    principalType: 'ServicePrincipal'
-  }
+  dependsOn: [
+    acrPullRoleAssignment
+  ]
 }
 
 output backendFqdn string = backend.outputs.fqdn

@@ -34,8 +34,8 @@ param maxReplicas int = 2
 @description('Container registry login server, e.g. myregistry.azurecr.io. Leave empty if containerImage is a public image (e.g. during first bootstrap before any image has been pushed).')
 param registryServer string = ''
 
-@description('Managed identity is used for ACR pull instead of admin credentials - no registry password is ever stored in this template.')
-param useManagedIdentityForRegistry bool = true
+@description('Resource ID of a user-assigned managed identity to pull from the registry with - no registry password is ever stored in this template. A shared identity (created and granted AcrPull in main.bicep before any container app exists) rather than this app\'s own system-assigned identity, to avoid a circular dependency: a system-assigned identity only exists once the app itself has already been created, but the app needs pull access before it can start at all.')
+param userAssignedIdentityId string = ''
 
 // items(object) turns {KEY: value} into [{key, value}, ...], iterable via for. Computed here as
 // their own variables rather than inline inside concat() below - Bicep only allows a for-
@@ -63,9 +63,16 @@ var secretEnvRefs = [for e in secretEntries: {
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
   location: location
-  identity: {
-    type: 'SystemAssigned'
-  }
+  identity: !empty(userAssignedIdentityId)
+    ? {
+        type: 'UserAssigned'
+        userAssignedIdentities: {
+          '${userAssignedIdentityId}': {}
+        }
+      }
+    : {
+        type: 'None'
+      }
   properties: {
     managedEnvironmentId: environmentId
     configuration: {
@@ -81,11 +88,11 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
           value: e.value
         }
       ]
-      registries: !empty(registryServer) && useManagedIdentityForRegistry
+      registries: !empty(registryServer) && !empty(userAssignedIdentityId)
         ? [
             {
               server: registryServer
-              identity: 'system'
+              identity: userAssignedIdentityId
             }
           ]
         : []
@@ -112,4 +119,3 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
 
 output fqdn string = containerApp.properties.configuration.ingress.fqdn
 output name string = containerApp.name
-output principalId string = containerApp.identity.principalId
