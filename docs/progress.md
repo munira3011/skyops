@@ -1049,6 +1049,96 @@ Read this before making changes. Update it at the end of every session.
   fix -> eval dashboard + role-based access), after the same pre-push
   secret-scan discipline as Day 6's first push - all clean.
 
+## User-reported bugs: multi-turn flight memory, timezone-naive LLM math, and a silent refresh button (2026-09-08)
+- **Multi-turn context bug in `flight_status_agent`**: user reported that
+  after asking about flight ZX275, a same-thread follow-up with no
+  flight number ("what is the updated timing of this flight now") got
+  the generic "could you share your PNR or flight number?" instead of
+  reusing ZX275. Root cause: `_find_flight_number` checked
+  `state["booking"]` for a remembered flight number across turns, but
+  never checked `state["flight"]` - the `Flight` object the node itself
+  writes to state after every successful lookup. Fixed by falling back
+  to `state["flight"]` only after confirming the latest message doesn't
+  mention a *different* flight number (so "what about ZX431 instead"
+  still correctly overrides the stale one). Verified over real HTTP on
+  the same `thread_id`, plus the override and fresh-conversation edge
+  cases standalone.
+- **Added LLM-synthesized answers to `flight_status_agent` and
+  `booking_agent`**, at the user's request, matching `rag_policy_agent`'s
+  existing pattern - both nodes previously returned the exact same
+  canned reply regardless of what was actually asked (e.g. "what's my
+  seat" got the full booking dump). Deterministic lookup stays
+  unchanged (PNR/flight resolution is unaffected by anything in the
+  message text, so this doesn't open a new way to reach someone else's
+  data); an LLM call now answers the specific question from the
+  resolved record's facts, with a deterministic full-text fallback on
+  `GatewayError`.
+  - **Found and fixed a real bug while testing this**: asked "tell me
+    the exact flight time" for ZX275, the LLM answered "6 hours and 25
+    minutes" - it interpreted this as flight *duration* and computed it
+    itself by naively subtracting `scheduled_departure` from
+    `scheduled_arrival`, which are in **different UTC offsets** (+04:00
+    vs +02:00) since the flight crosses time zones. The correct
+    duration is 8h25m; the LLM's naive clock subtraction was off by
+    exactly the 2-hour offset difference. Fixed two ways: precomputed
+    duration in Python (`datetime`'s aware-datetime subtraction handles
+    the offset correctly - verified directly) and handed to the LLM as
+    a fact, and the prompt now explicitly forbids the LLM from
+    performing any date/time or numeric calculation itself - if asked
+    for something not already listed as a fact, it must say so rather
+    than compute it. This is the same class of failure the user
+    originally asked about ("why couldn't the LLM calculate the exact
+    time") - flagging that giving an LLM raw source data and asking it
+    to compute derived values is a real, demonstrated failure mode, not
+    a hypothetical one.
+  - **Prompt injection defense, layered rather than reinvented**: both
+    nodes' prompts explicitly instruct the LLM to ignore text in the
+    passenger's message that looks like an instruction (role change,
+    revealing internals, discussing a different flight/booking/
+    passenger) - a backstop behind `input_guard`, which already wraps
+    the whole graph and caught every injection attempt tried in
+    testing (including subtler phrasings, via its real LLM judgment,
+    not just keyword matching) before either specialist even ran. The
+    node-level instruction was verified to hold on its own too, calling
+    each node directly (bypassing `input_guard`) with an embedded
+    injection attempt - both correctly refused while still answering
+    the passenger's legitimate question about their own record.
+  - Also fixed, deterministic and unaffected by the above: the
+    delayed-flight reply now states both the originally scheduled and
+    the estimated new departure time (`scheduled_departure` +
+    `delay_minutes`), previously omitted entirely - the concrete,
+    literal answer to the user's original "why no exact date/time"
+    question.
+- **Customer Chat's "Refresh" button gave no feedback**: user reported
+  clicking it appeared to do nothing. The underlying fetch
+  (`GET /chat/history/{thread_id}`) was actually correct and already
+  ran on *every* render, not just a click - so the button's `st.rerun()`
+  just re-triggered the same always-on sync, making a successful click
+  indistinguishable from a no-op. Fixed by tracking the click explicitly
+  and showing a toast only for that: "No new updates." or "Updated with
+  the latest activity." (comparing fetched messages against current
+  session state). Removed the `st.rerun()` call in the process - calling
+  it after `st.toast()` would have restarted the script before the toast
+  ever rendered, a real gotcha caught while testing the fix itself, not
+  a theoretical one. Verified via `AppTest`: triggered a $500 disruption
+  approval, clicked Refresh with nothing changed yet (correct "No new
+  updates."), approved it externally via the admin API - simulating a
+  real staff decision from another session - then clicked Refresh again
+  (correct "Updated...", pulled in the confirmation message).
+  - **Testing note for next time**: a `thread_id` set mid-script (inside
+    the same run that sends the first message) isn't visible to widgets
+    checked earlier in that same script pass - Streamlit runs top to
+    bottom once per invocation and doesn't retroactively re-render
+    earlier code just because state changed later in the same run. An
+    `AppTest` script that sends a message and immediately looks for the
+    now-conditionally-rendered "Refresh" button in that same `.run()`
+    call won't find it; an extra `.run()` (no new input) is needed to
+    let the script re-execute with the now-set `thread_id`. Caused a
+    confusing false negative while writing this fix's own test.
+- Full 38-case eval suite green after each fix; committed as 3 separate
+  commits (flight_status_agent, booking_agent, frontend refresh fix) and
+  pushed.
+
 ## Next up
 - `az bicep build`/`az deployment group validate` (or an actual
   `az deployment group create` against a scratch resource group) for the
