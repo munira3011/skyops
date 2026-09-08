@@ -46,6 +46,14 @@ param skyopsOpsApiKey string
 
 var logAnalyticsName = '${namePrefix}-logs'
 var environmentName = '${namePrefix}-env'
+// Computed once and reused for both each module's `name` param and the role-assignment `name`
+// below - a role assignment's `name` must be resolvable before deployment starts, so it can't
+// reference a module output like `frontend.outputs.name` (BCP120: found on the first real
+// deployment attempt, see docs/progress.md) even though that output just echoes this same,
+// already-known string back.
+var litellmProxyName = '${namePrefix}-litellm-proxy'
+var backendName = '${namePrefix}-backend'
+var frontendName = '${namePrefix}-frontend'
 
 resource logAnalytics 'Microsoft.OperationalInsights/workspaces@2023-09-01' = {
   name: logAnalyticsName
@@ -77,7 +85,7 @@ resource containerAppsEnvironment 'Microsoft.App/managedEnvironments@2024-03-01'
 module litellmProxy 'modules/container-app.bicep' = {
   name: 'litellm-proxy-deploy'
   params: {
-    name: '${namePrefix}-litellm-proxy'
+    name: litellmProxyName
     location: location
     environmentId: containerAppsEnvironment.id
     containerImage: litellmProxyImage
@@ -99,7 +107,7 @@ module litellmProxy 'modules/container-app.bicep' = {
 module backend 'modules/container-app.bicep' = {
   name: 'backend-deploy'
   params: {
-    name: '${namePrefix}-backend'
+    name: backendName
     location: location
     environmentId: containerAppsEnvironment.id
     containerImage: backendImage
@@ -123,7 +131,7 @@ module backend 'modules/container-app.bicep' = {
 module frontend 'modules/container-app.bicep' = {
   name: 'frontend-deploy'
   params: {
-    name: '${namePrefix}-frontend'
+    name: frontendName
     location: location
     environmentId: containerAppsEnvironment.id
     containerImage: frontendImage
@@ -152,7 +160,7 @@ resource acr 'Microsoft.ContainerRegistry/registries@2023-07-01' existing = {
 }
 
 resource litellmProxyAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registryResourceId, litellmProxy.outputs.name, acrPullRoleId)
+  name: guid(registryResourceId, litellmProxyName, acrPullRoleId)
   scope: acr
   properties: {
     roleDefinitionId: acrPullRoleId
@@ -162,7 +170,7 @@ resource litellmProxyAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01
 }
 
 resource backendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registryResourceId, backend.outputs.name, acrPullRoleId)
+  name: guid(registryResourceId, backendName, acrPullRoleId)
   scope: acr
   properties: {
     roleDefinitionId: acrPullRoleId
@@ -172,7 +180,7 @@ resource backendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
 }
 
 resource frontendAcrPull 'Microsoft.Authorization/roleAssignments@2022-04-01' = {
-  name: guid(registryResourceId, frontend.outputs.name, acrPullRoleId)
+  name: guid(registryResourceId, frontendName, acrPullRoleId)
   scope: acr
   properties: {
     roleDefinitionId: acrPullRoleId
