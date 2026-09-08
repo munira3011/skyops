@@ -22,9 +22,9 @@ param externalIngress bool = false
 @description('Non-secret environment variables.')
 param envVars array = []
 
-@description('Secret environment variables - name/value pairs. Values must come from Key Vault references or deployment parameters, never hardcoded here or in main.bicep.')
+@description('Secret environment variables as a name->value map. Values must come from Key Vault references or deployment parameters, never hardcoded here or in main.bicep. An object, not an array of {name,value} pairs, because @secure() only supports string/object types (BCP124) - found on the first real deployment attempt, see docs/progress.md.')
 @secure()
-param secretEnvVars array = []
+param secretEnvVars object = {}
 
 param cpu string = '0.5'
 param memory string = '1Gi'
@@ -36,6 +36,16 @@ param registryServer string = ''
 
 @description('Managed identity is used for ACR pull instead of admin credentials - no registry password is ever stored in this template.')
 param useManagedIdentityForRegistry bool = true
+
+// items(object) turns {KEY: value} into [{key, value}, ...], iterable via for. Computed here as
+// their own variables rather than inline inside concat() below - Bicep only allows a for-
+// expression as the direct value of a resource/module/variable/output declaration or a
+// resource/module property (BCP138), not nested inside an arbitrary function call.
+var secretNames = items(secretEnvVars)
+var secretEnvRefs = [for s in secretNames: {
+  name: s.key
+  secretRef: s.key
+}]
 
 resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
   name: name
@@ -53,8 +63,8 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
         allowInsecure: false
       }
       secrets: [
-        for s in secretEnvVars: {
-          name: s.name
+        for s in secretNames: {
+          name: s.key
           value: s.value
         }
       ]
@@ -76,15 +86,7 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             cpu: json(cpu)
             memory: memory
           }
-          env: concat(
-            envVars,
-            [
-              for s in secretEnvVars: {
-                name: s.name
-                secretRef: s.name
-              }
-            ]
-          )
+          env: concat(envVars, secretEnvRefs)
         }
       ]
       scale: {

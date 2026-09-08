@@ -92,11 +92,11 @@ module litellmProxy 'modules/container-app.bicep' = {
     targetPort: 4000
     externalIngress: false
     registryServer: registryServer
-    secretEnvVars: [
-      { name: 'OPENAI_API_KEY', value: openaiApiKey }
-      { name: 'ANTHROPIC_API_KEY', value: anthropicApiKey }
-      { name: 'LITELLM_MASTER_KEY', value: litellmSharedKey }
-    ]
+    secretEnvVars: {
+      OPENAI_API_KEY: openaiApiKey
+      ANTHROPIC_API_KEY: anthropicApiKey
+      LITELLM_MASTER_KEY: litellmSharedKey
+    }
   }
 }
 
@@ -118,11 +118,11 @@ module backend 'modules/container-app.bicep' = {
       { name: 'LITELLM_BASE_URL', value: 'https://${litellmProxy.outputs.fqdn}' }
       { name: 'LITELLM_MODEL', value: 'primary' }
     ]
-    secretEnvVars: [
-      { name: 'LITELLM_API_KEY', value: litellmSharedKey }
-      { name: 'SKYOPS_API_KEY', value: skyopsApiKey }
-      { name: 'SKYOPS_OPS_API_KEY', value: skyopsOpsApiKey }
-    ]
+    secretEnvVars: {
+      LITELLM_API_KEY: litellmSharedKey
+      SKYOPS_API_KEY: skyopsApiKey
+      SKYOPS_OPS_API_KEY: skyopsOpsApiKey
+    }
   }
 }
 
@@ -141,9 +141,9 @@ module frontend 'modules/container-app.bicep' = {
     envVars: [
       { name: 'SKYOPS_API_BASE_URL', value: 'https://${backend.outputs.fqdn}' }
     ]
-    secretEnvVars: [
-      { name: 'SKYOPS_API_KEY', value: skyopsApiKey }
-    ]
+    secretEnvVars: {
+      SKYOPS_API_KEY: skyopsApiKey
+    }
   }
 }
 
