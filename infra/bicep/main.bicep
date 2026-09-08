@@ -153,6 +153,14 @@ module backend 'modules/container-app.bicep' = {
     registryServer: registryServer
     userAssignedIdentityId: acrPullIdentity.id
     healthCheckPath: '/health'
+    // Pinned to a single replica: runtime.py's api_graph uses an in-memory LangGraph
+    // checkpointer (InMemorySaver) - conversation state lives in one process's RAM, never
+    // shared across replicas. With the module's default maxReplicas (2), a follow-up message
+    // could land on a replica that never saw the thread's earlier turns, silently losing
+    // context - found on the first live deployment (see docs/progress.md). litellm-proxy and
+    // the frontend don't have this problem (no cross-request state of their own), so only
+    // backend needs this override.
+    maxReplicas: 1
     envVars: [
       { name: 'LITELLM_BASE_URL', value: 'https://${litellmProxy.outputs.fqdn}' }
       { name: 'LITELLM_MODEL', value: 'primary' }
