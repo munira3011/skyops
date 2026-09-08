@@ -37,6 +37,9 @@ param registryServer string = ''
 @description('Resource ID of a user-assigned managed identity to pull from the registry with - no registry password is ever stored in this template. A shared identity (created and granted AcrPull in main.bicep before any container app exists) rather than this app\'s own system-assigned identity, to avoid a circular dependency: a system-assigned identity only exists once the app itself has already been created, but the app needs pull access before it can start at all.')
 param userAssignedIdentityId string = ''
 
+@description('Path Azure polls on targetPort to decide the container is ready. Azure\'s default startup probe patience is short - too short for a cold start that includes an image pull plus this app\'s own slow startup work (found on the first real deployment attempt: litellm-proxy\'s revision kept hitting "Operation expired" mid-startup even though it reliably came up healthy moments later - see docs/progress.md). An explicit startup probe below gives it several minutes instead.')
+param healthCheckPath string = '/'
+
 // items(object) turns {KEY: value} into [{key, value}, ...], iterable via for. Computed here as
 // their own variables rather than inline inside concat() below - Bicep only allows a for-
 // expression as the direct value of a resource/module/variable/output declaration or a
@@ -107,6 +110,19 @@ resource containerApp 'Microsoft.App/containerApps@2024-03-01' = {
             memory: memory
           }
           env: concat(envVars, secretEnvRefs)
+          probes: [
+            {
+              type: 'Startup'
+              httpGet: {
+                path: healthCheckPath
+                port: targetPort
+              }
+              initialDelaySeconds: 5
+              periodSeconds: 10
+              failureThreshold: 60
+              timeoutSeconds: 5
+            }
+          ]
         }
       ]
       scale: {

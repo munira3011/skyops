@@ -125,6 +125,7 @@ module litellmProxy 'modules/container-app.bicep' = {
     externalIngress: false
     registryServer: registryServer
     userAssignedIdentityId: acrPullIdentity.id
+    healthCheckPath: '/health/readiness'
     secretEnvVars: {
       OPENAI_API_KEY: openaiApiKey
       ANTHROPIC_API_KEY: anthropicApiKey
@@ -151,6 +152,7 @@ module backend 'modules/container-app.bicep' = {
     externalIngress: true
     registryServer: registryServer
     userAssignedIdentityId: acrPullIdentity.id
+    healthCheckPath: '/health'
     envVars: [
       { name: 'LITELLM_BASE_URL', value: 'https://${litellmProxy.outputs.fqdn}' }
       { name: 'LITELLM_MODEL', value: 'primary' }
@@ -179,6 +181,7 @@ module frontend 'modules/container-app.bicep' = {
     externalIngress: true
     registryServer: registryServer
     userAssignedIdentityId: acrPullIdentity.id
+    healthCheckPath: '/_stcore/health'
     envVars: [
       { name: 'SKYOPS_API_BASE_URL', value: 'https://${backend.outputs.fqdn}' }
     ]
