@@ -4,8 +4,11 @@ import chromadb
 
 from app.rag.ingest import CHROMA_DIR, COLLECTION_NAME, PolicyChunk
 
-# Empirically: on-topic queries score ~0.6-1.5, off-topic/gibberish score ~1.8+.
-_MAX_DISTANCE = 1.6
+# Empirically: on-topic queries score ~0.6-1.7 (a lexically-distant-but-correct chunk can
+# land as high as ~1.665 - found by the Day 7 ragas eval, docs/progress.md), off-topic/
+# gibberish queries score ~1.8+. 1.75 keeps clear margin below the off-topic floor while
+# admitting that case.
+_MAX_DISTANCE = 1.75
 
 
 @lru_cache(maxsize=1)
