@@ -35,21 +35,26 @@ def _flights_by_number() -> dict[str, Flight]:
 
 
 def _find_flight_number(state: AgentState) -> Optional[str]:
-    """booking's flight_number takes precedence, then an explicit flight number in the latest
-    message (a new mention always overrides), then falls back to `flight` already resolved by a
-    previous turn - without this, a same-thread follow-up like "what's the updated timing now"
-    with no flight number in it would go unresolved even though the graph already knows which
-    flight the conversation is about (found via a real multi-turn test - see docs/progress.md)."""
-    booking = state.get("booking")
-    if booking and booking.get("flight_number"):
-        return booking["flight_number"]
+    """An explicit flight number in the latest message always takes precedence - the user naming
+    a flight is the strongest, most specific signal available and must override any remembered
+    booking/flight. Only falls back to booking.flight_number, then a previously-resolved `flight`
+    in state, when the latest message doesn't name one itself.
 
+    Getting this order backwards is a real bug that shipped once: booking's flight_number was
+    checked first, unconditionally, so once a booking was resolved earlier in a thread (e.g. from
+    booking_agent), asking about a *different* flight by number later in the same thread silently
+    looked up the booking's flight instead of the one actually named - found live, on the deployed
+    app, see docs/progress.md."""
     for message in reversed(state["messages"]):
         if isinstance(message, HumanMessage):
             match = _FLIGHT_NUMBER_RE.search(str(message.content).upper())
             if match:
                 return match.group(0)
             break
+
+    booking = state.get("booking")
+    if booking and booking.get("flight_number"):
+        return booking["flight_number"]
 
     flight = state.get("flight")
     return flight["flight_number"] if flight else None
