@@ -41,8 +41,7 @@ frontend (Streamlit)  ──HTTP──>  backend (FastAPI + LangGraph)  ──HT
 ```
 
 Full topology, state/reducer rules, and the HTTP API surface are documented in
-[`docs/architecture.md`](docs/architecture.md). Build history and every bug found
-along the way are in [`docs/progress.md`](docs/progress.md).
+[`docs/architecture.md`](docs/architecture.md).
 
 ## Repo structure
 

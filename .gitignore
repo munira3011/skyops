@@ -12,3 +12,5 @@ node_modules/
 .pytest_cache/
 backend/app/data/eval_results/
 docs/deployment_steps.md
+docs/progress.md
+docs/project-structure.md
