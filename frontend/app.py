@@ -167,7 +167,6 @@ st.markdown(
 )
 
 with st.sidebar:
-    st.caption(f"Backend: {_API_BASE_URL}")
     for page in available_pages:
         if st.button(
             page,
