@@ -6,6 +6,11 @@ gateway layer — not a production airline system. Handles customer queries (fli
 status, booking details, disruption/rebooking, baggage/loyalty/check-in policy) and
 gives staff/admin a role-gated ops surface for approvals and eval visibility.
 
+**🔗 [Live demo](https://skyops-frontend.yellowmushroom-bca53175.uaenorth.azurecontainerapps.io/)** — deployed on Azure Container Apps. Open the Customer Chat (no login needed) and try:
+- "What's the baggage allowance for economy?"
+- "What's the status of flight ZX901?"
+- "My PNR is ZXDEMO1, my flight was cancelled, what compensation and rebooking do I get?"
+
 ## What it demonstrates
 
 - **Multi-agent orchestration** (LangGraph): a supervisor node classifies intent (LLM
