@@ -1,0 +1,39 @@
+{
+  "generated_at": "2026-09-08T07:29:31.644823+00:00",
+  "thresholds": {
+    "faithfulness": 0.8,
+    "context_precision": 0.8
+  },
+  "averages": {
+    "faithfulness": 1.0,
+    "context_precision": 1.0
+  },
+  "passed": true,
+  "questions": [
+    {
+      "question": "What is the checked baggage allowance in economy?",
+      "faithfulness": 1.0,
+      "context_precision": 1.0
+    },
+    {
+      "question": "How many miles do I need for the platinum loyalty tier?",
+      "faithfulness": 1.0,
+      "context_precision": 1.0
+    },
+    {
+      "question": "What documents do I need for check-in?",
+      "faithfulness": 1.0,
+      "context_precision": 1.0
+    },
+    {
+      "question": "What's Zenith Air's general policy on rebooking after a cancelled flight?",
+      "faithfulness": 1.0,
+      "context_precision": 1.0
+    },
+    {
+      "question": "Can I bring a carry-on bag in addition to my checked baggage?",
+      "faithfulness": 1.0,
+      "context_precision": 1.0
+    }
+  ]
+}

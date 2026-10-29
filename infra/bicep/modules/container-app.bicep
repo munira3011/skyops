@@ -28,8 +28,11 @@ param secretEnvVars object = {}
 
 param cpu string = '0.5'
 param memory string = '1Gi'
-param minReplicas int = 1
-param maxReplicas int = 2
+// Sized for the Container Apps Consumption free grant (180,000 vCPU-s + 360,000 GiB-s + 2M requests
+// per month, per subscription): scale to zero so an idle app uses nothing, and cap at one replica
+// so a traffic spike can't burn through the grant. Raise minReplicas for always-on (paid) behavior.
+param minReplicas int = 0
+param maxReplicas int = 1
 
 @description('Container registry login server, e.g. myregistry.azurecr.io. Leave empty if containerImage is a public image (e.g. during first bootstrap before any image has been pushed).')
 param registryServer string = ''
