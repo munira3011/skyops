@@ -31,9 +31,15 @@ _CLASSIFIER_PROMPT = SystemMessage(
         "refund eligibility for their own trip\n"
         "- rag_policy_agent - general questions about baggage, loyalty tiers, check-in, or "
         "policy rules that aren't about a specific booking\n"
-        "- none - anything else"
+        "- none - anything else\n"
+        "If the latest message is a short follow-up with no topic of its own (e.g. \"what is "
+        "the time?\", \"and the gate?\"), classify it by the topic of the recent conversation "
+        "provided."
     )
 )
+
+_CONTEXT_MESSAGES = 10
+_CONTEXT_CHARS = 300
 
 # Deterministic fallback used only if the gateway/LiteLLM proxy is unavailable.
 _FLIGHT_STATUS_KEYWORDS = ("flight status", "delayed", "delay", "on time", "gate", "cancelled")
@@ -73,15 +79,25 @@ def _keyword_classify(text: str) -> Optional[str]:
     return None
 
 
-def _llm_classify(text: str) -> Optional[str]:
-    decision = chat_structured([_CLASSIFIER_PROMPT, HumanMessage(content=text)], _RouteDecision)
+def _recent_context(state: AgentState) -> str:
+    """Last few turns before the latest user message, so a short follow-up ("what is the time?") can be classified by the topic it continues."""
+    lines = []
+    for message in state["messages"][:-1][-_CONTEXT_MESSAGES:]:
+        speaker = "Customer" if isinstance(message, HumanMessage) else "Assistant"
+        lines.append(f"{speaker}: {str(message.content)[:_CONTEXT_CHARS]}")
+    return "\n".join(lines)
+
+
+def _llm_classify(text: str, context: str = "") -> Optional[str]:
+    content = f"Recent conversation:\n{context}\n\nLatest message: {text}" if context else text
+    decision = chat_structured([_CLASSIFIER_PROMPT, HumanMessage(content=content)], _RouteDecision)
     return decision.route if decision.route != "none" else None
 
 
-def _classify(text: str) -> tuple[Optional[str], str]:
+def _classify(text: str, context: str = "") -> tuple[Optional[str], str]:
     """Returns (destination, handoff_reason). Tries LLM classification via the gateway first, falls back to keyword matching if the proxy is unreachable/misconfigured."""
     try:
-        destination = _llm_classify(text)
+        destination = _llm_classify(text, context)
         return destination, f"llm classified as {destination}" if destination else "llm classified as no match"
     except GatewayError as exc:
         destination = _keyword_classify(text)
@@ -95,7 +111,7 @@ def supervisor(state: AgentState) -> dict:
     if messages and isinstance(messages[-1], AIMessage):
         return {"next": None}
 
-    destination, reason = _classify(_latest_user_text(state))
+    destination, reason = _classify(_latest_user_text(state), _recent_context(state))
     if destination is None:
         reply = (
             "I can help with flight status, your booking details, disruption rebooking, or "
